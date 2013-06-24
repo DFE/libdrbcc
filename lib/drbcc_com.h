@@ -155,7 +155,7 @@ typedef enum
 	DRBCC_P_LITHIUM_POWER			= 1,    // neither standby nor key power present (lithium powered)
 	DRBCC_P_KEY_POWER				= 2,    // VKey activated, VKey-Bypass-FET closed (/VKEY_FET)
 	DRBCC_P_STANDBY_POWER			= 3,    // StandBy voltage present, standby-bypass-FET closed (/STBY_FET)
-	DRBCC_P_HOST_POWER				= 4,    // host application powered (PWR_EN)
+	DRBCC_P_HOST_POWERED			= 4,    // host application powered (PWR_EN)
 
 	// these are the options that can be combined with the main power state
 	DRBCC_P_OPT_KEY_POWER_ENABLED	= 0x80, // VKey activated (VKEY_PWR_EN)
