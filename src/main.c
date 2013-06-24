@@ -292,7 +292,7 @@ static void print_usage(FILE *out, int complete)
 
 static void print_version(void)
 {
-	fprintf(stdout, "%s [$Id: 92834683f4db137bc3cfa2cb91c2faee8d4bcbc6 $]\n", s_progname);
+	fprintf(stdout, "%s [$Id$]\n", s_progname);
 }
 
 static void sighandler(int signum)
