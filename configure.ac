@@ -53,6 +53,8 @@ AC_DEFUN([AB_AC_FUNC_OPEN_BINARY], [_AB_AC_FUNC_OPEN([O_BINARY])])
 
 # Checks for programs.
 AC_PROG_CC
+AM_PROG_CC_C_O
+AM_PROG_AR
 
 # Checks for header files.
 AC_HEADER_STDC
