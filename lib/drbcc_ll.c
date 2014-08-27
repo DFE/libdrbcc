@@ -58,7 +58,7 @@ int libdrbcc_initialized = 0;
 
 void libdrbcc_free_queue(DRBCC_MESSAGE_t *msg);
 
-#define LOCKDIR "/var/lock"
+#define LOCKDIR "/tmp"
 #define TIMEOUT 2
 
 #ifdef HAVE_LIBDRTRACE
