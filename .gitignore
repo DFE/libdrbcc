@@ -1,0 +1,25 @@
+# exclude generated files
+Makefile
+config.h
+config.log
+config.status
+*/.deps/
+*/Makefile
+*libtool
+stamp-h1
+autom4te.cache
+build-aux/ar-lib
+build-aux/compile
+*/.libs/
+*.lo
+*.o
+*.la
+
+# exclude targets
+src/drbcc
+
+# exclude generated doc
+doxygen-doc
+
+# exclude editor backup files
+*~
