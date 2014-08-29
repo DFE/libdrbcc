@@ -20,6 +20,9 @@
 
 #if HAVE_CONFIG_H
 #  include <config.h>
+#ifdef HAVE_LIBLOCKDEV
+#    include <lockdev.h>
+#endif
 #endif
 
 #include <stdio.h>
@@ -58,7 +61,7 @@ int libdrbcc_initialized = 0;
 
 void libdrbcc_free_queue(DRBCC_MESSAGE_t *msg);
 
-#define LOCKDIR "/tmp"
+#define LOCKDIR "/var/lock"
 #define TIMEOUT 2
 
 #ifdef HAVE_LIBDRTRACE
@@ -93,18 +96,21 @@ static void autoTraceInit()
 }
 
 // returns < 0 -> negative error code
-// fills in the lockfile path
+// fills in the lockfile parameter (devname if liblockfile is available,
+// full lockfile path else)
 static int libdrbcc_open_tty(const char *dev, DRBCC_BR_t br, char *lockfile, int llen)
 {
-	char pname[256], tty[256], pidbuf[20];
-	int fd, fd1, fd2;
-	time_t stamp;
-	int pid, len;
+	char tty[256];
+	int fd;
 	char *p;
 	int baud;
 	struct termios tios;
-
-	mkdir(LOCKDIR, 0777);
+#ifndef HAVE_LIBLOCKDEV
+	char pname[256], pidbuf[20];
+	int fd1, fd2;
+	int pid, len;
+	time_t stamp;
+#endif
 
 	// generate the base name of the tty
 	if ((p = rindex(dev, '/')) != NULL || (p = rindex(dev, '\\')) != NULL)
@@ -117,6 +123,18 @@ static int libdrbcc_open_tty(const char *dev, DRBCC_BR_t br, char *lockfile, int
 	}
 
 	tty[sizeof(tty)-1] = '\0'; // trailing \0
+
+#ifdef HAVE_LIBLOCKDEV
+	// return the device name
+	snprintf(lockfile, llen, "%s", tty);
+	lockfile[llen - 1] = '\0';
+
+	if(0 != dev_lock(lockfile))
+	{
+			return -DRBCC_RC_DEVICE_LOCKED; // we give up
+	}
+#else
+	mkdir(LOCKDIR, 0777);
 
 	// return the lock file name
 	snprintf(lockfile, llen, "%s/LCK..%s", LOCKDIR, tty);
@@ -183,6 +201,7 @@ static int libdrbcc_open_tty(const char *dev, DRBCC_BR_t br, char *lockfile, int
 	}
 
 	close(fd1);
+#endif
 
 	// rene
 	// now open the tty
@@ -191,14 +210,21 @@ static int libdrbcc_open_tty(const char *dev, DRBCC_BR_t br, char *lockfile, int
 
 	if (fd < 0)
 	{
+#ifdef HAVE_LIBLOCKDEV
+		dev_unlock(lockfile, 0);
+#else
 		unlink(lockfile);
-
+#endif
 		return -DRBCC_RC_SYSTEM_ERROR;
 	}
 
 	if (tcgetattr(fd, &tios) < 0)
 	{
+#ifdef HAVE_LIBLOCKDEV
+		dev_unlock(lockfile, 0);
+#else
 		unlink(lockfile);
+#endif
 		close(fd);
 
 		return -DRBCC_RC_SYSTEM_ERROR;
@@ -219,7 +245,11 @@ static int libdrbcc_open_tty(const char *dev, DRBCC_BR_t br, char *lockfile, int
 
 	if (cfsetospeed(&tios, baud) < 0)
 	{
+#ifdef HAVE_LIBLOCKDEV
+		dev_unlock(lockfile, 0);
+#else
 		unlink(lockfile);
+#endif
 		close(fd);
 
 		return -DRBCC_RC_SYSTEM_ERROR;
@@ -229,7 +259,11 @@ static int libdrbcc_open_tty(const char *dev, DRBCC_BR_t br, char *lockfile, int
 
 	if (tcsetattr(fd, TCSANOW, &tios) < 0)
 	{
+#ifdef HAVE_LIBLOCKDEV
+		dev_unlock(lockfile, 0);
+#else
 		unlink(lockfile);
+#endif
 		close(fd);
 
 		return -DRBCC_RC_SYSTEM_ERROR;
@@ -399,7 +433,11 @@ DRBCC_RC_t drbcc_close(DRBCC_HANDLE_t h)
 	if (drbcc->fd >= 0)
 	{
 		close(drbcc->fd);
+#ifdef HAVE_LIBLOCKDEV
+		dev_unlock(drbcc->lockfile, 0);
+#else
 		unlink(drbcc->lockfile);
+#endif
 	}
 	free(drbcc);
 	return DRBCC_RC_NOERROR;

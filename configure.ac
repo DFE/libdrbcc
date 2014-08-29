@@ -13,6 +13,13 @@ AC_CONFIG_HEADERS([config.h])
 AC_ARG_WITH([libdrtrace-path],
 	AS_HELP_STRING([--with-libdrtrace-path=PATH], [path prefix to libdrtrace]))
 
+#------------------------------------------------------
+# Headers/Libraries
+
+## search for lockdev
+AC_CHECK_HEADER(lockdev.h,,AC_MSG_WARN("library 'liblockdev' is missing - using /var/lock for locks"))
+AC_CHECK_LIB(lockdev,dev_unlock,,AC_MSG_WARN("library 'liblockdev' is missing - using /var/lock for locks"))
+
 # _AB_AC_FUNC_OPEN(O_BINARY|O_TEXT)
 # ---------------------------------
 AC_DEFUN([_AB_AC_FUNC_OPEN],
