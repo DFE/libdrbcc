@@ -25,21 +25,20 @@
 #endif
 #endif
 
-#include <stdio.h>
-#include <unistd.h>
-#include <malloc.h>
-#include <fcntl.h>
-#include <string.h>
 #include <errno.h>
-#include <stdlib.h>
-
-#include <sys/timeb.h>
+#include <fcntl.h>
+#include <malloc.h>
 #include <signal.h>
-#include <unistd.h>
-#include <sys/select.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
+#include <sys/select.h>
 #include <sys/stat.h>
+#include <sys/timeb.h>
+#include <sys/types.h>
 #include <termios.h>
+#include <unistd.h>
 
 #ifdef HAVE_LIBDRTRACE
 #include <drhiptrace.h>
@@ -101,10 +100,12 @@ static void autoTraceInit()
 static int libdrbcc_open_tty(const char *dev, DRBCC_BR_t br, char *lockfile, int llen)
 {
 	char tty[256];
+	char realdev[strlen(dev)+1];
 	int fd;
 	char *p;
 	int baud;
 	struct termios tios;
+    ssize_t r;
 #ifndef HAVE_LIBLOCKDEV
 	char pname[256], pidbuf[20];
 	int fd1, fd2;
@@ -112,14 +113,25 @@ static int libdrbcc_open_tty(const char *dev, DRBCC_BR_t br, char *lockfile, int
 	time_t stamp;
 #endif
 
+	// determine the real device path in case of a symlink
+    r = readlink(dev, realdev, sizeof(realdev));
+    if (r < 0) {
+        strncpy(realdev, dev, sizeof(realdev));
+		realdev[sizeof(realdev)-1] = '\0';
+    }
+	else
+	{
+		realdev[((size_t)r > sizeof(realdev) ? sizeof(realdev)-1 : (size_t)r)] = '\0';
+	}
+
 	// generate the base name of the tty
-	if ((p = rindex(dev, '/')) != NULL || (p = rindex(dev, '\\')) != NULL)
+	if ((p = rindex(realdev, '/')) != NULL || (p = rindex(realdev, '\\')) != NULL)
 	{
 		strncpy(tty, p+1, sizeof(tty));
 	}	
 	else
 	{
-		strncpy(tty, dev, sizeof(tty));
+		strncpy(tty, realdev, sizeof(tty));
 	}
 
 	tty[sizeof(tty)-1] = '\0'; // trailing \0
