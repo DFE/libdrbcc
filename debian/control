@@ -1,0 +1,33 @@
+Source: libdrbcc
+Section: unknown
+Priority: optional
+Maintainer: Steffem Sledz <sledz@dresearch-fe.de>
+Build-Depends: debhelper (>= 5), autoconf, automake, libreadline-dev
+
+Package: drbcc
+Architecture: any
+Depends: ${shlibs:Depends},
+	 ${misc:Depends},
+	  libdrbcc0 (= ${binary:Version})
+Description: CLI for DResearch Board Controller Communication
+ This packages contains the command line client for the DResearch Board Controller
+ Communication protocol.
+
+Package: libdrbcc0
+Architecture: any
+Section: libs
+Depends: ${shlibs:Depends},
+	 ${misc:Depends}
+Description: DResearch Board Controller Communication Library
+ Libdrbcc is a library implementing the DResearch Board Controller Communication
+ protocol used in HydraIP devices.
+
+Package: libdrbcc-dev
+Architecture: any
+Section: libdevel
+Depends: ${misc:Depends},
+	 libdrbcc0 (= ${binary:Version}),
+	 libreadline-dev
+Description: development files and documentation for libdrbcc
+ This package contains all necessary include files and libraries needed
+ to compile and develop applications that use libdrbcc.
