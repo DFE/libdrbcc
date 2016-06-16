@@ -4,7 +4,6 @@ AC_INIT([libdrbcc], [0.1], [FOSS-projects@dresearch-fe.de])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
-LT_INIT
 AC_CONFIG_HEADERS([config.h])
 
 #------------------------------------------------------
@@ -62,6 +61,8 @@ AC_DEFUN([AB_AC_FUNC_OPEN_BINARY], [_AB_AC_FUNC_OPEN([O_BINARY])])
 AC_PROG_CC
 AM_PROG_CC_C_O
 AM_PROG_AR
+
+LT_INIT
 
 # Checks for header files.
 AC_HEADER_STDC
