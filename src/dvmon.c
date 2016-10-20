@@ -24,8 +24,22 @@
 
 #include "dvmon.h"
 
+#ifdef HAVE_LIBDRTRACE
+#include <drhiptrace.h>
+#else
+#endif
+
+#include "trace.h"
+
 #define LOCKDIR "/var/lock"
 #define TIMEOUT 2
+
+
+#if USE_OPEN_BINARY
+#define OX_BINARY O_BINARY
+#else
+#define OX_BINARY 0
+#endif
 
 int s_fd = -1;
 char s_lockfile[256];
@@ -205,10 +219,62 @@ int dvmon_init(const char* dev)
 	return 0;
 }
 
+#define FIRMWARE_SECTION_SIZE 16384
+
+static unsigned int crc16_update(unsigned int  crc, unsigned char a)
+{
+	int i;
+
+	crc ^= a;
+	for (i = 0; i < 8; ++i)
+	{
+	    if (crc & 1)
+		crc = (crc >> 1) ^ 0xA001;
+	    else
+		crc = (crc >> 1);
+	}
+
+	return crc;
+}
+
+static unsigned int calcCRC16(unsigned char *f, unsigned int size)
+{
+	unsigned char buf[FIRMWARE_SECTION_SIZE];
+	unsigned int i, crc16;
+
+	for (i = 0; i < FIRMWARE_SECTION_SIZE; i++) 
+		buf[i] = 0xff;
+
+	crc16 = 0;
+
+	memcpy(buf, f, size);
+	
+	for (i = 0; i < FIRMWARE_SECTION_SIZE; i++) 
+		crc16 = crc16_update(crc16, buf[i]); // calc crc16 over complete section, unused space filled with 0xff
+
+	return crc16;
+}
+
+
+static unsigned int waitReadAndCut(int fd, unsigned char* p, int size)
+{
+	int ret = 0, i = 0;
+	
+	while(!ret)
+	{
+		usleep(20000);
+		ret = read(fd, p, size);
+		i++;
+	}
+	// TRACE(TL_INFO, "read tries: %i", i);
+	p[ret - 1] = 0;
+	return ret;
+}	
+
 int dvmon(const char* cmd)
 {
 	int ret;
-	char s[128];
+	char s[320];
 	
 	if (cmd && cmd[0])
 	{
@@ -234,19 +300,199 @@ int dvmon(const char* cmd)
 					puts(s);
 			}
 		}
+		else if (0 == strncmp(cmd, "waitpoweroff", strlen("waitpoweroff")))	
+		{			
+			sprintf(s, "R 0\n");
+			ret = write(s_fd, s, strlen(s));
+			if (ret == strlen(s))
+				puts(s);
+		}
  		else if (0 == strncmp(cmd, "getrtc", strlen("getrtc")))	
 		{
 			puts("rtc_cb: 2000-01-01 00:00:00 (epoch=0)");
 			return 0;
 		}
+ 		else if (0 == strncmp(cmd, "pfiletype", strlen("pfiletype")))	
+		{			
+			// cmd=="pfiletype 0x50,/etc/hydraip-devid"			
+			unsigned int type = (unsigned int)-1;
+			char path[FILENAME_MAX] = "";
+			if(2 != sscanf(cmd, "%*s%i,%s", &type, path) && (0x50 != type)) // devid only
+			{
+				TRACE(TL_INFO, "command syntax problem: %s", cmd);
+				return 1;
+			}
+			else
+			{
+				char f[320];
+				int fd = open(path, O_RDONLY | OX_BINARY);
+				if (fd < 0)
+				{
+					TRACE(TL_INFO, "open file failed: %s", path);
+					return 2;
+				}
+				ret = read(fd, f, sizeof(f));
+				if (ret <= 0)
+				{
+					TRACE(TL_INFO, "read file failed: %s", path);
+					close(fd);
+					return 2;
+				}
+				
+				for (ret--; ret>=0; ret--)
+				{
+					if ('\n' == f[ret])
+						f[ret] = '|';
+				}
+				close(fd);			
+				sprintf(s, "CW 0 %s\n", f); 
+				ret = write(s_fd, s, strlen(s));
+				if (ret == strlen(s))
+					puts(s);
+			}
+		}
+ 		else if (0 == strncmp(cmd, "gfiletype", strlen("gfiletype")))	
+		{			
+			// cmd=="gfiletype 0x50,/etc/hydraip-devid"
+			unsigned int type = (unsigned int)-1;
+			char path[FILENAME_MAX] = "";
+			if(2 != sscanf(cmd, "%*s%i,%s", &type, path) && (0x50 != type)) // devid only
+			{
+				TRACE(TL_INFO, "command syntax problem: %s", cmd);
+				return 1;
+			}
+			else
+			{	
+				char f[320];
+				sprintf(s, "CR 0\n");
+				ret = write(s_fd, s, strlen(s));
+				if (ret == strlen(s))
+				{
+					puts(s);
+					ret = waitReadAndCut(s_fd, f, sizeof(f));
+					if (ret <= 0)
+					{
+						TRACE(TL_INFO, "read bcc failed: %s", cmd);
+						return 4;
+					}
+					puts(f);
+					for (ret--; ret>0; ret--)
+					{
+						if ('|' == f[ret])
+							f[ret] = '\n';
+					}
+					int fd = open(path, O_RDWR | O_CREAT | O_TRUNC | OX_BINARY, 0666);
+					if (fd < 0)
+					{
+						TRACE(TL_INFO, "open file failed: %s", path);
+						return 2;
+					}					
+					// cut trailing "cr 0 " and \n
+					ret = write(fd, f+5, strlen(f)-7);					
+					close(fd);
+					if (ret != strlen(f)-7)
+					{
+						TRACE(TL_INFO, "write file failed: %s", path);
+						return 2;
+					}					
+					return 0;
+				}
+				else
+				{
+					TRACE(TL_INFO, "write failed: %s", cmd);
+					return 3;
+				}				
+			}
+		}
+ 		else if (0 == strncmp(cmd, "fwupload", strlen("fwupload")))	
+		{			
+			char crc[32] = "";
+			char path[FILENAME_MAX] = "";
+			if (1 != sscanf(cmd, "%*s %s", path)) // devid only
+			{
+				TRACE(TL_INFO, "command syntax problem: %s", cmd);
+				return 1;
+			}
+			else
+			{
+				int i, size;
+				char f[FIRMWARE_SECTION_SIZE];
+				int fd = open(path, O_RDONLY | OX_BINARY);
+				if (fd < 0)
+				{
+					TRACE(TL_INFO, "open file failed: %s", path);
+					return 2;
+				}
+				size = read(fd, f, sizeof(f));
+				if (size <= 0)
+				{
+					TRACE(TL_INFO, "read file failed: %s", path);
+					close(fd);
+					return 2;
+				}				
+				close(fd);			
 
+				for (i = 0; i < size; i += 128) // lines 
+				{
+					int j;
+					char s[400]; 					
+					sprintf(s, "P %04X ", i);
+
+					for (j = 0; j < 128 && i + j < size; j++) 
+					{				
+						sprintf(s + strlen(s), "%02X ", f[i + j]);						
+					}
+					puts(s);
+					sprintf(s + strlen(s), "\n");
+					
+					ret = write(s_fd, s, strlen(s));
+					if (ret != strlen(s))
+					{
+						TRACE(TL_INFO, "write bcc failed: %s", s);
+						return 5;
+					}					
+					ret = waitReadAndCut(s_fd, s, sizeof(s));
+					puts(s);
+				}
+				
+				ret = write(s_fd, "Q\n", 2);				
+				if (ret != 2)
+				{
+					TRACE(TL_INFO, "write bcc failed: %s", s);
+					return 6;
+				}	
+				ret = waitReadAndCut(s_fd, s, sizeof(s));
+				puts(s);
+				
+				sprintf(crc, "q %04X", calcCRC16(f, size));
+				
+				if (0 == strncmp(s, crc, 6))
+				{	
+					sprintf(s, "U %04X\n", calcCRC16(f, size));
+					ret = write(s_fd, s, strlen(s));
+					if (ret != strlen(s))
+					{
+						TRACE(TL_INFO, "write bcc failed: %s", s);
+						return 7;
+					}	
+					
+					ret = waitReadAndCut(s_fd, s, sizeof(s));
+					if (0 == strncmp(s, "u ok", 4))
+					{
+						puts(s);	
+						return 0;
+					}
+				}
+				TRACE(TL_INFO, "update failed crc <%s> ", crc);
+				return 7;
+			}
+		}
 		else
 		{
-		    fprintf(stderr, "Unknown cmd <%s>\n", cmd);	
+		    TRACE(TL_INFO, "Unknown cmd <%s>\n", cmd);	
 			return 1;
 		}
-		sleep(1);
-		ret = read(s_fd, s, sizeof(s));
+		ret = waitReadAndCut(s_fd, s, sizeof(s));
 		puts(s);	
 	}
 	return 0;
