@@ -292,6 +292,39 @@ static void print_usage(FILE *out, int complete)
 
 }
 
+static void print_dvmon_usage(FILE *out, int complete)
+{
+	if(complete)
+	{
+		fprintf(out, "Usage: %s [options]\n", s_progname);
+		fprintf(out, "Send/libdrbcc_receive messages to HydraIP board controller light.\n\n");
+		fprintf(out, "Options\n");
+		fprintf(out, "  --version,       print version and exit successfully\n");
+		fprintf(out, "  --help, -h       print this help and exit successfully\n");
+		fprintf(out, "  --cmd=CMD        execute the CMD and exit\n");
+		fprintf(out, "  --trace=LEVEL    set tracelevel (default: 1)\n");
+		fprintf(out, "                   %u no debug info, just errors\n", TL_INFO);
+		fprintf(out, "                   %u + global info and warnings\n", TL_DEBUG);
+		fprintf(out, "                   %u + mainloop activities\n", TL_TRACE);
+		fprintf(out, "  --libtrace=MASK  set tracemask for libdrbcc\n");
+		fprintf(out, "                   0x%08X serial transport\n", (0xF<<(DRBCC_TR_TRANS*4)));
+		fprintf(out, "                   0x%08X parameter parsing\n", (0xF<<(DRBCC_TR_PARAM*4)));
+		fprintf(out, "                   0x%08X queue handling\n", (0xF<<(DRBCC_TR_QUEUE*4)));
+		fprintf(out, "                   0x%08X message handling\n", (0xF<<(DRBCC_TR_MSGS*4)));
+		fprintf(out, "  --dev=DEVICE[,SPEED]  character device of board controller\n");
+		fprintf(out, "                   supported speeds: 57600, 115200, 921600(default %u)\n", speed_2_uint(s_speed));
+		fprintf(out, "Commands accepted at --cmd=:\n");
+		fprintf(out, "	proto            request PROTOCOL info\n");
+		fprintf(out, "	gfiletype 0x50,F write hydraip-devid to local file F\n");
+		fprintf(out, "	pfiletype 0x50,F read hydraip-devid from file F to BCTRL\n");
+		fprintf(out, "	fwupload F       update firmware from file F\n");
+		fprintf(out, "	heartbeat N      heartbeat with N (0-65535) seconds timeout\n");
+		fprintf(out, "	shutdown N       heartbeat with N (0-65535) seconds timeout\n");
+		fprintf(out, "	waitpoweroff     do not reboot at next shutdown\n");
+		fprintf(out, "	getrtc           returns \"rtc_cb: 2000-01-01 00:00:00 (epoch=0)\"\n");
+	}
+}
+
 static void print_version(void)
 {
 	fprintf(stdout, "%s [$Id$]\n", s_progname);
@@ -1997,6 +2030,12 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
+		if (!s_cmd_line || !s_cmd_line[0])
+		{
+			print_dvmon_usage(stdout, 1);
+			return 1;
+		}
+		
 		TRACE(TL_DEBUG, "dvmon drbcc cmd: %s", s_cmd_line);
 		if (0 == dvmon_init(s_dev))
 		{

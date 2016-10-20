@@ -278,7 +278,14 @@ int dvmon(const char* cmd)
 	
 	if (cmd && cmd[0])
 	{
-		if (0 == strncmp(cmd, "heartbeat", strlen("heartbeat")))	
+		if (0 == strncmp(cmd, "proto", strlen("proto")))	
+		{
+			sprintf(s, "V\n");
+			ret = write(s_fd, s, strlen(s));
+			if (ret != strlen(s))
+				TRACE(TL_INFO, "write failed: %s", cmd);			
+		}
+		else if (0 == strncmp(cmd, "heartbeat", strlen("heartbeat")))	
 		{
 			int i;
 			if (1 == sscanf(cmd, "heartbeat %u", &i))
