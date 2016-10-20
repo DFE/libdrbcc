@@ -19,6 +19,8 @@
  */
 
 
+#include "dvmon.h"
+
 #if HAVE_CONFIG_H
 #  include <config.h>
 #endif
@@ -1984,13 +1986,26 @@ int main(int argc, char *argv[])
 	argv += optind;
 	argc -= optind;
 
-	CHECKCALL(TL_DEBUG, rc, drbcc_init, (libtracemask));
-	if(rc == DRBCC_RC_NOERROR)
+	if (system("hip-machinfo -s | grep dvmon > /dev/null"))
 	{
-		CHECKCALL(TL_DEBUG, rc, establish_connection, ());
+		CHECKCALL(TL_DEBUG, rc, drbcc_init, (libtracemask));
+		if(rc == DRBCC_RC_NOERROR)
+		{
+			CHECKCALL(TL_DEBUG, rc, establish_connection, ());
+		}
+		CHECKCALL(TL_DEBUG, rc, drbcc_term, ());
 	}
-	CHECKCALL(TL_DEBUG, rc, drbcc_term, ());
-
+	else
+	{
+		TRACE(TL_DEBUG, "dvmon drbcc cmd: %s", s_cmd_line);
+		if (0 == dvmon_init(s_dev))
+		{
+			rc = dvmon(s_cmd_line);
+			dvmon_term();
+		}
+		else
+			TRACE(TL_DEBUG, "dvmon drbcc open dev <%s> failed", s_dev); 
+	}
 	return rc;
 }
 
