@@ -1,15 +1,20 @@
 # exclude generated files
 Makefile
+Makefile.in
 config.h
 config.log
 config.status
+config.h.in
+configure
+m4/
 */.deps/
 */Makefile
+*/Makefile.in
 *libtool
 stamp-h1
+aclocal.m4
 autom4te.cache
-build-aux/ar-lib
-build-aux/compile
+build-aux/
 */.libs/
 *.lo
 *.o
