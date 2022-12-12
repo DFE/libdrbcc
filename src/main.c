@@ -2,7 +2,7 @@
  * vim:set ts=4 sw=4 noexpandtab:  */
 
 /*
- * Copyright (C) 2013 DResearch Fahrzeugelektronik GmbH
+ * Copyright (C) 2013, 2022 DResearch Fahrzeugelektronik GmbH
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,8 +42,7 @@
 #include <pthread.h>
 #include <malloc.h>
 #include <math.h>
-#include <readline/readline.h>
-#include <readline/history.h>
+#include <editline/readline.h>
 
 #include <drbcc.h>
 #include <drbcc_files.h>

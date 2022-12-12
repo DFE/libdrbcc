@@ -66,7 +66,7 @@ LT_INIT
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([libgen.h unistd.h malloc.h fcntl.h errno.h sys/timeb.h signal.h unistd.h sys/select.h sys/ioctl.h termios.h readline/readline.h pthread.h])
+AC_CHECK_HEADERS([libgen.h unistd.h malloc.h fcntl.h errno.h sys/timeb.h signal.h unistd.h sys/select.h sys/ioctl.h termios.h pthread.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -75,8 +75,15 @@ AC_C_VOLATILE
 
 # Check for additional libraries
 AC_CHECK_LIB([pthreads], [pthread_create], [], [AC_CHECK_LIB([pthread], [pthread_create], [], [ AC_MSG_ERROR([*** Could not find pthread lib ***]) ])])
-AC_CHECK_LIB([readline], [readline], [], [ AC_MSG_ERROR([*** Could not find libreadline ***]) ])
 AC_CHECK_LIB([m], [sqrt], [], [ AC_MSG_ERROR([*** Could not find libm ***]) ])
+
+# check for libedit
+PKG_CHECK_MODULES(LIBEDIT, libedit, have_libedit=true, have_libedit=false)
+if test "x${have_libedit}" = "xfalse" ; then
+   AC_MSG_ERROR([No libedit package information found])
+fi
+AC_SUBST(LIBEDIT_CFLAGS)
+AC_SUBST(LIBEDIT_LIBS)
 
 # Checks for library functions
 AC_CHECK_FUNCS([getopt_long memset basename])
